@@ -9,7 +9,9 @@ TODO
 
 # TODO
 
-. . . TODO
+- Write functions to match all of the supported api functions
+- Write docs, examples, and flesh out the readme
+- Consider creating data classes to represent api results
 
 # Installation
 
