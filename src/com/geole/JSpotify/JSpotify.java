@@ -43,12 +43,13 @@ public class JSpotify {
 	
 	private static boolean initialized = false;
 
+	// Maps error codes to error messages
+	// Sourced from https://github.com/chrippa/spotify-remote
 	private static final HashMap<Integer, String> Errors = new HashMap<>();
 
 	static {
 
-		// Errors
-		// Sourced from https://github.com/chrippa/spotify-remote
+		// Static initialization of map
 		Errors.put(4001, "Unknown method");
 		Errors.put(4002, "Error parsing request");
 		Errors.put(4003, "Unknown service");
@@ -78,6 +79,13 @@ public class JSpotify {
 	// This is a static class
 	private JSpotify() {}
 	
+	/**
+	 * Initializes the api for use
+	 * Do not call any api methods until you have initialized
+	 * NOTE: On a successful initialization true is returned, however should an error occure false is not returned and instead a @SpotifyException is thrown
+	 * @return Returns true if initialization was successful
+	 * @throws SpotifyException Thrown when the api fails to initialize this can be a failure to acquire the OAuth Token, CSRF Token, or local port
+	 */
 	public static boolean initialize() throws SpotifyException {
 		
 		// Acquire OAuth token from static url and cache result
@@ -98,12 +106,10 @@ public class JSpotify {
 		// 4370
 		for (int i = 4400; i >= 4370; i--) {
 			try {
+				System.out.println("Trying " + baseURL.replace("{port}", Integer.toString(i)));
 				URL url = new URL(JSpotify.baseURL.replace("{port}", Integer.toString(i)));
 				HttpURLConnection connection = (HttpURLConnection) url.openConnection();
 				connection.connect();
-				if (connection.getResponseCode() != HttpURLConnection.HTTP_OK) {
-					throw new IOException("Not a good connection!");
-				}
 			} catch (IOException e) {
 				// Unable to find port
 				if (i == 4370) {
