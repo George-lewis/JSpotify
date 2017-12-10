@@ -33,11 +33,14 @@ try {
 }
 ```
 
-Getting the client version:
+Getting the various client info:
 
 ```
 try {
-  String version = JSpotify.getClientVersion();
+  Status status = JSpotify.getStatus();
+  status.getClientVersion();
+  status.getVolume();
+  status.getTrack().getArtist().getName();
 } catch (SpotifyException e) {
   // Jspotify failed to make the api call
 }
