@@ -7,7 +7,7 @@ It's good for things like getting the current song or requesting a song be playe
 
 - Write functions to match all of the supported api functions
 - Write docs, examples, and flesh out the readme
-- Consider creating data classes to represent api results
+- :heavy_check_mark: Consider creating data classes to represent api results
 
 # How to use it
 
