@@ -1,5 +1,7 @@
 package com.geole.JSpotify.Models;
 
+import org.json.JSONObject;
+
 public class Status {
 	
 	private final long server_time;
@@ -15,28 +17,22 @@ public class Status {
 	
 	private final Track track;
 	
-	public Status(long server_time, int playing_position, boolean prev_enabled,
-			boolean play_enabled, boolean next_enabled, int version,
-			int volume, boolean running, boolean repeat,
-			boolean online, boolean playing, OpenGraphState OPS,
-			String client_version, boolean shuffle, Track track) {
-		
-		this.server_time = server_time;
-		this.playing_position = playing_position;
-		this.prev_enabled = prev_enabled;
-		this.play_enabled = play_enabled;
-		this.next_enabled = next_enabled;
-		this.version = version;
-		this.volume = volume;
-		this.running = running;
-		this.repeat = repeat;
-		this.online = online;
-		this.playing = playing;
-		this.OPS = OPS;
-		this.client_version = client_version;
-		this.shuffle = shuffle;
-		this.track = track;
-		
+	public Status(JSONObject obj) {
+		this.server_time = obj.getLong("server_time");
+		this.playing_position = obj.getInt("playing_position");
+		this.prev_enabled = obj.getBoolean("prev_enabled");
+		this.play_enabled = obj.getBoolean("play_enabled");
+		this.next_enabled = obj.getBoolean("next_enabled");
+		this.version = obj.getInt("version");
+		this.volume = obj.getInt("volume");
+		this.running = obj.getBoolean("running");
+		this.repeat = obj.getBoolean("repeat");
+		this.online = obj.getBoolean("repeat");
+		this.playing = obj.getBoolean("playing");
+		this.OPS = new OpenGraphState(obj.getJSONObject("open_graph_state"));
+		this.client_version = obj.getString("client_version");
+		this.shuffle = obj.getBoolean("shuffle");
+		this.track = new Track(obj.getJSONObject("track"));
 	}
 
 	public long getServerTime() {

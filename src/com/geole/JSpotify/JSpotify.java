@@ -11,6 +11,11 @@ import java.util.Map;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import com.geole.JSpotify.Models.OpenGraphState;
+import com.geole.JSpotify.Models.SpotifyResource;
+import com.geole.JSpotify.Models.Status;
+import com.geole.JSpotify.Models.Track;
+import com.mashape.unirest.http.ObjectMapper;
 import com.mashape.unirest.http.Unirest;
 import com.mashape.unirest.http.exceptions.UnirestException;
 
@@ -133,7 +138,7 @@ public class JSpotify {
 				
 	}
 	
-	private static JSONObject request(String path, Map<String, Object> opts) throws SpotifyException {
+	private static <C> C request(String path, Map<String, Object> opts, Class<C> clazz) throws SpotifyException {
 		
 		if (!initialized) {
 			throw new SpotifyException("JSpotify must be initialized before you can use it.");
@@ -142,8 +147,6 @@ public class JSpotify {
 		try {
 		JSONObject obj =  Unirest.get(baseURL + path).queryString("oauth", OAuthToken).queryString("csrf", CSRFToken).queryString(opts).asJson().getBody().getObject();
 		
-		System.out.println(obj);
-		
 		if (obj.has("error")) {
 			JSONObject error = obj.getJSONObject("error");
 			String error_code = error.getString("type");
@@ -151,10 +154,16 @@ public class JSpotify {
 			throw new SpotifyException("Spotify client returned an error!\nError code " + error_code + "\nMessage: " + message);
 		}
 		
-		return obj;
+		if (clazz.equals(Void.TYPE)) {
+			return null;
+		} else {
+			return clazz.getConstructor(JSONObject.class).newInstance(obj);
+		}
 		
 		} catch (UnirestException | JSONException e) {
-			throw new SpotifyException("Failed to perform api call", e);
+			throw new SpotifyException("Failed to perform api call.", e);
+		} catch (InstantiationException | IllegalAccessException | IllegalArgumentException | InvocationTargetException | NoSuchMethodException | SecurityException e) {
+			throw new SpotifyException("Failed to instantiate the model class during api call.", e);
 		}
 		
 	}
@@ -177,36 +186,24 @@ public class JSpotify {
 	
 	public static void enque(String... urls) throws SpotifyException {
 		for (String url : urls) {
-			JSpotify.request("/remote/play.json", Map.of("uri", url, "action", "queue"));
+			JSpotify.request("/remote/play.json", Map.of("uri", url, "action", "queue"), Void.TYPE);
 		}
 	}
 
-	public static void play(String url) throws SpotifyException {
-		JSpotify.request("/remote/play.json", Map.of("uri", url));
+	public static Status play(String url) throws SpotifyException {
+		return JSpotify.request("/remote/play.json", Map.of("uri", url), Status.class);
 	}
 
-	public static void pause() throws SpotifyException {
-		JSpotify.request("/remote/pause.json", EMPTY_MAP);
+	public static Status pause() throws SpotifyException {
+		return JSpotify.request("/remote/pause.json", EMPTY_MAP, Status.class);
 	}
 	
-	public static void unpause() throws SpotifyException {
-		JSpotify.request("/remote/pause.json", EMPTY_MAP);
+	public static Status unpause() throws SpotifyException {
+		return JSpotify.request("/remote/pause.json", EMPTY_MAP, Status.class);
 	}
 	
-	public static JSONObject getStatus() throws SpotifyException {
-		return JSpotify.request("/remote/status.json", EMPTY_MAP);
-	}
-	
-	public static String getClientVersion() throws SpotifyException {
-		return JSpotify.getStatus().optString("client_version", "[UNAVAILABLE]");
-	}
-	
-	public static boolean isShuffle() throws SpotifyException {
-		return JSpotify.getStatus().optBoolean("shuffle", false);
-	}
-	
-	public static boolean isRepeat() throws SpotifyException {
-		return JSpotify.getStatus().optBoolean("repeat", false);
+	public static Status getStatus() throws SpotifyException {
+		return JSpotify.request("/remote/status.json", EMPTY_MAP, Status.class);
 	}
 
 }

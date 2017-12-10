@@ -1,5 +1,7 @@
 package com.geole.JSpotify.Models;
 
+import org.json.JSONObject;
+
 public class Track {
 	
 	private final SpotifyResource artist, album, track;
@@ -7,13 +9,13 @@ public class Track {
 	private final String track_type;
 	
 	private final int length;
-	
-	public Track(SpotifyResource artist, SpotifyResource album, SpotifyResource track, String track_type, int length) {
-		this.artist = artist;
-		this.album = album;
-		this.track = track;
-		this.track_type = track_type;
-		this.length = length;
+
+	public Track(JSONObject obj) {
+		this.artist = new SpotifyResource(obj.getJSONObject("artist_resource"));
+		this.album = new SpotifyResource(obj.getJSONObject("album_resource"));
+		this.track = new SpotifyResource(obj.getJSONObject("track_resource"));
+		this.track_type = obj.getString("track_type");
+		this.length = obj.getInt("length");
 	}
 	
 	public boolean isAd() {
