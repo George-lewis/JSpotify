@@ -2,8 +2,8 @@ package com.geole.JSpotify;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.net.URI;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -11,11 +11,7 @@ import java.util.Map;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import com.geole.JSpotify.Models.OpenGraphState;
-import com.geole.JSpotify.Models.SpotifyResource;
 import com.geole.JSpotify.Models.Status;
-import com.geole.JSpotify.Models.Track;
-import com.mashape.unirest.http.ObjectMapper;
 import com.mashape.unirest.http.Unirest;
 import com.mashape.unirest.http.exceptions.UnirestException;
 
@@ -35,8 +31,10 @@ public class JSpotify {
 
 	}
 	
+	public static final String VERSION = "v0.1";
+	
 	private static final Map<String, Object> EMPTY_MAP = Collections.emptyMap();
-
+	
 	private static String OAuthToken, CSRFToken;
 
 	private static String baseURL = "http://JSpotify.spotilocal.com:{port}";
@@ -100,9 +98,12 @@ public class JSpotify {
 		// 4370
 		for (int i = 4400; i >= 4370; i--) {
 			try {
-				//URL url = new URL(JSpotify.baseURL.replace("{port}", Integer.toString(i)));
-				//URLConnection connection = url.openConnection();
-				URI.create(JSpotify.baseURL.replace("{port}", Integer.toString(i))).toURL().openConnection().connect();
+				URL url = new URL(JSpotify.baseURL.replace("{port}", Integer.toString(i)));
+				HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+				connection.connect();
+				if (connection.getResponseCode() != HttpURLConnection.HTTP_OK) {
+					throw new IOException("Not a good connection!");
+				}
 			} catch (IOException e) {
 				// Unable to find port
 				if (i == 4370) {
@@ -145,6 +146,7 @@ public class JSpotify {
 		}
 		
 		try {
+			
 		JSONObject obj =  Unirest.get(baseURL + path).queryString("oauth", OAuthToken).queryString("csrf", CSRFToken).queryString(opts).asJson().getBody().getObject();
 		
 		if (obj.has("error")) {
@@ -184,11 +186,12 @@ public class JSpotify {
 		return JSpotify.port;
 	}
 	
+	/* Seems to not work - additional testing required
 	public static void enque(String... urls) throws SpotifyException {
 		for (String url : urls) {
 			JSpotify.request("/remote/play.json", Map.of("uri", url, "action", "queue"), Void.TYPE);
 		}
-	}
+	}*/
 
 	public static Status play(String url) throws SpotifyException {
 		return JSpotify.request("/remote/play.json", Map.of("uri", url), Status.class);
