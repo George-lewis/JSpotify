@@ -32,7 +32,7 @@ public class JSpotify {
 	
 	private static final Map<String, Object> EMPTY_MAP = Collections.emptyMap();
 
-	private static String OAuthToken , CSRFToken;
+	private static String OAuthToken, CSRFToken;
 
 	private static String baseURL = "http://JSpotify.spotilocal.com:{port}";
 
@@ -134,6 +134,11 @@ public class JSpotify {
 	}
 	
 	private static JSONObject request(String path, Map<String, Object> opts) throws SpotifyException {
+		
+		if (!initialized) {
+			throw new SpotifyException("JSpotify must be initialized before you can use it.");
+		}
+		
 		try {
 		JSONObject obj =  Unirest.get(baseURL + path).queryString("oauth", OAuthToken).queryString("csrf", CSRFToken).queryString(opts).asJson().getBody().getObject();
 		
