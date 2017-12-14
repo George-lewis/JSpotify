@@ -179,21 +179,6 @@ public class JSpotify {
 		} catch (JSONException | UnirestException e) {
 			throw new SpotifyException("Failed to acquire CSRF token.", e);
 		}
-		
-//		while (true) {
-//			try {
-//				System.out.println(baseURL);
-//				Unirest.get(baseURL + "/remote/status.json").queryString("oauth", OAuthToken).queryString("csrf", CSRFToken).asJson().getBody();
-//			} catch (UnirestException e) {
-//				validURLS.remove(baseURL);
-//				if (validURLS.isEmpty()) {
-//					throw new SpotifyException("Could not resolve Spotify port. Is Spotify running?", e);
-//				}
-//				JSpotify.baseURL = validURLS.get(0);
-//				continue;
-//			}
-//			break;
-//		}
 
 		JSpotify.initialized = true;
 
