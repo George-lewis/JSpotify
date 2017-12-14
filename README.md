@@ -5,10 +5,11 @@ It's good for things like getting the current song or requesting a song be playe
 
 # TODO
 
-- Write functions to match all of the supported api functions
+- :heavy_check_mark:? Write functions to match all of the supported api functions
 - Write docs, examples, and flesh out the readme
 - :heavy_check_mark: Consider creating data classes to represent api results
-- Find a faster way to acquire the port (threading?)
+- :heavy_check_mark: Find a faster way to acquire the port (threading?)
+- Create a release
 
 # How to use it
 
