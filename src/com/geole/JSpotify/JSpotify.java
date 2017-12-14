@@ -11,6 +11,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -48,8 +49,6 @@ public class JSpotify {
 
 	private static String baseURL = "http://JSpotify.spotilocal.com:{port}";
 
-	private static ArrayList<String> validURLS = new ArrayList<>(0);
-
 	private static boolean initialized = false;
 
 	// Maps error codes to error messages
@@ -86,8 +85,7 @@ public class JSpotify {
 	}
 
 	// This is a static class
-	private JSpotify() {
-	}
+	private JSpotify() {}
 
 	/**
 	 * Initializes the api for use Do not call any api methods until you have
@@ -104,7 +102,10 @@ public class JSpotify {
 
 		// Acquire OAuth token from static url and cache result
 		try {
-			JSpotify.OAuthToken = Unirest.get("https://open.spotify.com/token").asJson().getBody().getObject()
+			JSpotify.OAuthToken = Unirest.get("https://open.spotify.com/token")
+					.asJson()
+					.getBody()
+					.getObject()
 					.getString("t");
 		} catch (JSONException | UnirestException e) {
 			throw new SpotifyException("Failed to acquire OAuth token", e);
@@ -113,12 +114,13 @@ public class JSpotify {
 		ExecutorService executor = Executors.newFixedThreadPool(30);
 
 		ArrayList<Future<String>> futures = new ArrayList<>(30);
+		
+		ArrayList<String> validURLS = new ArrayList<>(0);
 
 		for (int i = 4370; i <= 4400; i++) {
 			final String strurl = JSpotify.baseURL.replace("{port}", Integer.toString(i));
 			Future<String> future = executor.submit(() -> {
 				try {
-					System.out.println("Trying: " + strurl);
 					URL url = new URL(strurl);
 					HttpURLConnection connection = (HttpURLConnection) url.openConnection();
 					connection.connect();
@@ -132,9 +134,7 @@ public class JSpotify {
 
 		while (true) {
 
-			System.out.println(futures);
-
-			futures.stream().filter(f -> {
+			Optional<String> opt = futures.stream().filter(f -> {
 				try {
 					return f.isDone() && Objects.nonNull(f.get());
 				} catch (InterruptedException | ExecutionException e) {
@@ -146,12 +146,19 @@ public class JSpotify {
 				} catch (InterruptedException | ExecutionException e) {
 					return null; // This case was eliminated in the filter block
 				}
-			}).forEach(url -> validURLS.add(url));
+			}).filter(url -> {
+				try {
+					Unirest.get(url + "/remote/status.json").queryString("oauth", OAuthToken)
+							.queryString("csrf", CSRFToken).asJson().getBody();
+				} catch (UnirestException e) {
+					return false;
+				}
+				return true;
+			}).findFirst();
 
-			if (!validURLS.isEmpty()) {
-				futures.forEach(f -> f.cancel(true));
+			if (opt.isPresent()) {
 				executor.shutdownNow();
-				JSpotify.baseURL = validURLS.get(0);
+				opt.ifPresent(url -> JSpotify.baseURL = url);
 				break;
 			}
 
@@ -172,6 +179,21 @@ public class JSpotify {
 		} catch (JSONException | UnirestException e) {
 			throw new SpotifyException("Failed to acquire CSRF token.", e);
 		}
+		
+//		while (true) {
+//			try {
+//				System.out.println(baseURL);
+//				Unirest.get(baseURL + "/remote/status.json").queryString("oauth", OAuthToken).queryString("csrf", CSRFToken).asJson().getBody();
+//			} catch (UnirestException e) {
+//				validURLS.remove(baseURL);
+//				if (validURLS.isEmpty()) {
+//					throw new SpotifyException("Could not resolve Spotify port. Is Spotify running?", e);
+//				}
+//				JSpotify.baseURL = validURLS.get(0);
+//				continue;
+//			}
+//			break;
+//		}
 
 		JSpotify.initialized = true;
 
@@ -186,13 +208,6 @@ public class JSpotify {
 		}
 		
 		try {
-		
-			System.out.println(path);
-			
-			System.out.println(baseURL);
-			
-			System.out.println(Unirest.get(baseURL + path).queryString("oauth", OAuthToken)
-					.queryString("csrf", CSRFToken).queryString(opts).asString().getBody());
 
 			JSONObject obj = Unirest.get(baseURL + path).queryString("oauth", OAuthToken).queryString("csrf", CSRFToken)
 					.queryString(opts).asJson().getBody().getObject();
