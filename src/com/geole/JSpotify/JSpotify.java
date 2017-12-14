@@ -114,8 +114,6 @@ public class JSpotify {
 		ExecutorService executor = Executors.newFixedThreadPool(30);
 
 		ArrayList<Future<String>> futures = new ArrayList<>(30);
-		
-		ArrayList<String> validURLS = new ArrayList<>(0);
 
 		for (int i = 4370; i <= 4400; i++) {
 			final String strurl = JSpotify.baseURL.replace("{port}", Integer.toString(i));
