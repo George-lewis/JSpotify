@@ -11,11 +11,11 @@ public class OpenGraphState {
 		this.private_session = obj.getBoolean("private_session");
 	}
 
-	public boolean isPosting_disabled() {
+	public boolean isPostingDisabled() {
 		return posting_disabled;
 	}
 
-	public boolean isPrivate_session() {
+	public boolean isPrivateSession() {
 		return private_session;
 	}
 

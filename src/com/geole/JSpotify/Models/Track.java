@@ -34,7 +34,7 @@ public class Track {
 		return track;
 	}
 
-	public String getTrack_type() {
+	public String getTrackType() {
 		return track_type;
 	}
 
