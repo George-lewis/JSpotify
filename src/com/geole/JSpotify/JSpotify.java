@@ -1,10 +1,8 @@
 package com.geole.JSpotify;
 
-import java.io.Externalizable;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -16,7 +14,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.ThreadPoolExecutor;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -27,16 +24,54 @@ import com.mashape.unirest.http.exceptions.UnirestException;
 
 public class JSpotify {
 
+	/**
+	 * A SpotifyException is thrown when the Spotify api returns an error or there is an issue accessing the api
+	 */
 	public static class SpotifyException extends Exception {
 
 		private static final long serialVersionUID = 7267790627241968134L;
 
+		private Optional<Integer> errorCode;
+		
+		private Optional<String> errorMessage;
+		
 		public SpotifyException(String message) {
 			super(message);
+			this.errorCode = Optional.empty();
+			this.errorMessage = Optional.empty();
 		}
-
+	
 		public SpotifyException(String message, Throwable throwable) {
 			super(message, throwable);
+			this.errorCode = Optional.empty();
+			this.errorMessage = Optional.empty();
+		}
+		
+		public SpotifyException(String message, int error) {
+			super(message);
+			this.errorCode = Optional.of(error);
+			this.errorMessage = Optional.ofNullable(Errors.getOrDefault(error, null));
+		}
+	
+		public SpotifyException(String message, Throwable throwable, int error) {
+			super(message, throwable);
+			this.errorCode = Optional.of(error);
+			this.errorMessage = Optional.ofNullable(Errors.getOrDefault(error, null));
+		}
+		
+		/**
+		 * @return true if the error is returned by the api and false if the error arose from accessing the api
+		 */
+		public boolean isAPIError() {
+			return errorCode.isPresent();
+		}
+		
+		public Optional<Integer> getErrorCode() {
+			return this.errorCode;
+		}
+		
+		public Optional<String> getErrorMessage() {
+			return this.errorMessage;
 		}
 
 	}
@@ -88,9 +123,11 @@ public class JSpotify {
 	private JSpotify() {}
 
 	/**
-	 * Initializes the api for use Do not call any api methods until you have
-	 * initialized NOTE: On a successful initialization true is returned, however
-	 * should an error occure false is not returned and instead a @SpotifyException
+	 * Initializes the api for use
+	 * Do not call any api methods until you have initialized
+	 * This function call is blocking and may take some time to complete
+	 * NOTE: On a successful initialization true is returned, however
+	 * should an error occur, false is not returned and instead a @SpotifyException
 	 * is thrown
 	 * 
 	 * @return Returns true if initialization was successful
@@ -158,6 +195,10 @@ public class JSpotify {
 				executor.shutdownNow();
 				opt.ifPresent(url -> JSpotify.baseURL = url);
 				break;
+			}
+			
+			if (futures.stream().allMatch(f -> f.isDone())) {
+				throw new SpotifyException("Unable to resolve Spotify port. Is Spotify running?");
 			}
 
 		}
@@ -242,18 +283,35 @@ public class JSpotify {
 	 * Void.TYPE); } }
 	 */
 
+	/**
+	 * Request a song to be played
+	 * @param url Any valid Spotify URL to be played
+	 * @return A fresh status from right after the song has been requested
+	 */
 	public static Status play(String url) throws SpotifyException {
 		return JSpotify.request("/remote/play.json", Map.of("uri", url), Status.class);
 	}
 
+	/**
+	 * Pause the currently playing music
+	 * @return A fresh status from right after the song has been paused
+	 */
 	public static Status pause() throws SpotifyException {
 		return JSpotify.request("/remote/pause.json", EMPTY_MAP, Status.class);
 	}
 
+	/**
+	 * Unpauses the music
+	 * @return A fresh status from right after the song has been unpaused
+	 */
 	public static Status unpause() throws SpotifyException {
 		return JSpotify.request("/remote/pause.json", EMPTY_MAP, Status.class);
 	}
 
+	/**
+	 * Retrieves the current status of the client
+	 * @return The status of the client
+	 */
 	public static Status getStatus() throws SpotifyException {
 		return JSpotify.request("/remote/status.json", EMPTY_MAP, Status.class);
 	}
