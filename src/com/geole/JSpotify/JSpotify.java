@@ -19,6 +19,8 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import com.geole.JSpotify.Models.Status;
+import com.mashape.unirest.http.HttpResponse;
+import com.mashape.unirest.http.JsonNode;
 import com.mashape.unirest.http.Unirest;
 import com.mashape.unirest.http.exceptions.UnirestException;
 
@@ -138,14 +140,17 @@ public class JSpotify {
 	public static boolean initialize() throws SpotifyException {
 
 		// Acquire OAuth token from static url and cache result
-		try {
-			JSpotify.OAuthToken = Unirest.get("https://open.spotify.com/token")
-					.asJson()
-					.getBody()
-					.getObject()
-					.getString("t");
-		} catch (JSONException | UnirestException e) {
-			throw new SpotifyException("Failed to acquire OAuth token", e);
+		while (true) {
+			try {
+				HttpResponse<String> resp = Unirest.get("https://open.spotify.com/token").asString();
+				if (resp.getStatus() == 503) {
+					continue;
+				}
+				JSpotify.OAuthToken = new JSONObject(resp.getBody()).getString("t");
+			} catch (JSONException | UnirestException e) {
+				throw new SpotifyException("Failed to acquire OAuth token", e);
+			}
+			break;
 		}
 
 		ExecutorService executor = Executors.newFixedThreadPool(30);
