@@ -69,7 +69,7 @@ public class JSpotify {
 
 	}
 
-	public static final String VERSION = "v0.1";
+	public static final String VERSION = "v0.2";
 
 	private static final Map<String, Object> EMPTY_MAP = Collections.emptyMap();
 
@@ -167,6 +167,7 @@ public class JSpotify {
 			}
 			
 			if (futures.stream().allMatch(f -> f.isDone())) {
+				executor.shutdownNow();
 				throw new SpotifyException("Unable to resolve Spotify port. Is Spotify running?");
 			}
 
