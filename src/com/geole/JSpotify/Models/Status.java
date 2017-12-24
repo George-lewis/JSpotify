@@ -94,5 +94,18 @@ public class Status {
 	public Track getTrack() {
 		return track;
 	}
+	
+	public boolean isListeningToArtist(String artist) {
+		return track.getArtist().getName().equalsIgnoreCase(artist);
+	}
+	
+	public boolean isListeningToSong(String song) {
+		return track.getTrack().getName().equalsIgnoreCase(song);
+	}
+	
+	public boolean isListeningTo(String song, String artist) {
+		return track.getTrack().getName().equalsIgnoreCase(song) &&
+				track.getArtist().getName().equalsIgnoreCase(artist);
+	}
 
 }

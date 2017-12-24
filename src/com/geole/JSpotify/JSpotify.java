@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -20,12 +22,11 @@ import org.json.JSONObject;
 
 import com.geole.JSpotify.Models.Status;
 import com.mashape.unirest.http.HttpResponse;
-import com.mashape.unirest.http.JsonNode;
 import com.mashape.unirest.http.Unirest;
 import com.mashape.unirest.http.exceptions.UnirestException;
 
 public class JSpotify {
-
+	
 	/**
 	 * A SpotifyException is thrown when the Spotify api returns an error or there is an issue accessing the api
 	 */
@@ -33,32 +34,26 @@ public class JSpotify {
 
 		private static final long serialVersionUID = 7267790627241968134L;
 
-		private Optional<Integer> errorCode;
-		
-		private Optional<String> errorMessage;
+		private final Optional<Integer> errorCode;
 		
 		public SpotifyException(String message) {
 			super(message);
 			this.errorCode = Optional.empty();
-			this.errorMessage = Optional.empty();
 		}
 	
 		public SpotifyException(String message, Throwable throwable) {
 			super(message, throwable);
 			this.errorCode = Optional.empty();
-			this.errorMessage = Optional.empty();
 		}
 		
 		public SpotifyException(String message, int error) {
 			super(message);
 			this.errorCode = Optional.of(error);
-			this.errorMessage = Optional.ofNullable(Errors.getOrDefault(error, null));
 		}
 	
 		public SpotifyException(String message, Throwable throwable, int error) {
 			super(message, throwable);
 			this.errorCode = Optional.of(error);
-			this.errorMessage = Optional.ofNullable(Errors.getOrDefault(error, null));
 		}
 		
 		/**
@@ -71,10 +66,6 @@ public class JSpotify {
 		public Optional<Integer> getErrorCode() {
 			return this.errorCode;
 		}
-		
-		public Optional<String> getErrorMessage() {
-			return this.errorMessage;
-		}
 
 	}
 
@@ -86,7 +77,9 @@ public class JSpotify {
 
 	private static String baseURL = "http://JSpotify.spotilocal.com:{port}";
 
-	private static boolean initialized = false;
+	private static boolean initialized = false, running = false;
+	
+	private static Optional<ProcessHandle> spotifyProcess = Optional.empty();
 
 	// Maps error codes to error messages
 	// Sourced from https://github.com/chrippa/spotify-remote
@@ -123,36 +116,8 @@ public class JSpotify {
 
 	// This is a static class
 	private JSpotify() {}
-
-	/**
-	 * Initializes the api for use
-	 * Do not call any api methods until you have initialized
-	 * This function call is blocking and may take some time to complete
-	 * NOTE: On a successful initialization true is returned, however
-	 * should an error occur, false is not returned and instead a @SpotifyException
-	 * is thrown
-	 * 
-	 * @return Returns true if initialization was successful
-	 * @throws SpotifyException
-	 *             Thrown when the api fails to initialize this can be a failure to
-	 *             acquire the OAuth Token, CSRF Token, or local port
-	 */
-	public static boolean initialize() throws SpotifyException {
-
-		// Acquire OAuth token from static url and cache result
-		while (true) {
-			try {
-				HttpResponse<String> resp = Unirest.get("https://open.spotify.com/token").asString();
-				if (resp.getStatus() == 503) {
-					continue;
-				}
-				JSpotify.OAuthToken = new JSONObject(resp.getBody()).getString("t");
-			} catch (JSONException | UnirestException e) {
-				throw new SpotifyException("Failed to acquire OAuth token", e);
-			}
-			break;
-		}
-
+	
+	private static String resolvePort() throws SpotifyException {
 		ExecutorService executor = Executors.newFixedThreadPool(30);
 
 		ArrayList<Future<String>> futures = new ArrayList<>(30);
@@ -198,14 +163,75 @@ public class JSpotify {
 
 			if (opt.isPresent()) {
 				executor.shutdownNow();
-				opt.ifPresent(url -> JSpotify.baseURL = url);
-				break;
+				return opt.get();
 			}
 			
 			if (futures.stream().allMatch(f -> f.isDone())) {
 				throw new SpotifyException("Unable to resolve Spotify port. Is Spotify running?");
 			}
 
+		}
+	}
+
+	/**
+	 * Initializes the api for use
+	 * Do not call any api methods until you have initialized
+	 * This function call is blocking and may take some time to complete
+	 * NOTE: On a successful initialization true is returned, however
+	 * should an error occur, false is not returned and instead a @SpotifyException
+	 * is thrown
+	 * 
+	 * @return Returns true if initialization was successful
+	 * @throws SpotifyException
+	 *             Thrown when the api fails to initialize this can be a failure to
+	 *             acquire the OAuth Token, CSRF Token, or local port
+	 */
+	public static boolean initialize(boolean start) throws SpotifyException {
+
+		if (JSpotify.initialized) {
+			throw new SpotifyException("JSpotify is already initialized");
+		}
+		
+		if (!start && !JSpotify.canStartSpotify() && !JSpotify.running && (JSpotify.spotifyProcess.isPresent() && !JSpotify.spotifyProcess.get().isAlive())) {
+			throw new SpotifyException("The Spotify client has been closed");
+		}
+		
+		// Acquire OAuth token from static url and cache result
+		if (Objects.isNull(JSpotify.OAuthToken)) {
+			while (true) {
+				try {
+					HttpResponse<String> resp = Unirest.get("https://open.spotify.com/token").asString();
+					if (resp.getStatus() == 503) {
+						continue;
+					}
+					JSpotify.OAuthToken = new JSONObject(resp.getBody()).getString("t");
+				} catch (JSONException | UnirestException e) {
+					throw new SpotifyException("Failed to acquire OAuth token", e);
+				}
+				break;
+			}
+		}
+		
+		if (!JSpotify.running || JSpotify.baseURL.equals("http://JSpotify.spotilocal.com:{port}")) {
+			
+			try {
+		
+				JSpotify.baseURL = JSpotify.resolvePort();
+		
+			} catch (SpotifyException e) {
+				if (start && JSpotify.canStartSpotify()) {
+					if (JSpotify.startSpotify()) {
+						JSpotify.baseURL = JSpotify.resolvePort();
+					}
+				} else {
+					throw e;
+				}
+			}
+			
+			JSpotify.running = true;
+		
+		} else {
+			System.out.println("Spotify already running");
 		}
 
 		try {
@@ -223,8 +249,21 @@ public class JSpotify {
 		} catch (JSONException | UnirestException e) {
 			throw new SpotifyException("Failed to acquire CSRF token.", e);
 		}
-
+		
 		JSpotify.initialized = true;
+		
+		while (true) {
+			try {
+				JSpotify.getStatus();
+			} catch(SpotifyException e) {
+				if (e.isAPIError() && e.getErrorCode().get().equals(4110)) {
+					continue;
+				} else {
+					throw e;
+				}
+			}
+			break;
+		}
 
 		return true;
 
@@ -243,11 +282,11 @@ public class JSpotify {
 
 			if (obj.has("error")) {
 				JSONObject error = obj.getJSONObject("error");
-				String error_code = error.getString("type");
+				int error_code = error.getInt("type");
 				String message = error.has("message") ? error.getString("message")
-						: Errors.get(Integer.parseInt(error_code));
+						: "";
 				throw new SpotifyException(
-						"Spotify client returned an error!\nError code " + error_code + "\nMessage: " + message);
+						"Spotify client returned an error! Error code " + error_code + " Message: " + message, error_code);
 			}
 
 			if (clazz.equals(Void.TYPE)) {
@@ -319,6 +358,69 @@ public class JSpotify {
 	 */
 	public static Status getStatus() throws SpotifyException {
 		return JSpotify.request("/remote/status.json", EMPTY_MAP, Status.class);
+	}
+	
+	public static boolean isSpotifyRunning(boolean checkProcess) {
+		if (JSpotify.running || (JSpotify.spotifyProcess.isPresent() && JSpotify.spotifyProcess.get().isAlive())) {
+			return true;
+		} else if (System.getProperty("os.name").toLowerCase().contains("windows") && checkProcess) {
+			Optional<ProcessHandle> ph = ProcessHandle.allProcesses()
+					.filter(handle -> handle.info().command().isPresent()
+							&& handle.info().command().get().endsWith("Spotify.exe"))
+					.findFirst();
+			if (ph.isPresent()) {
+				JSpotify.spotifyProcess = ph;
+				JSpotify.running = true;
+				return true;
+			} else {
+				return false;
+			}
+		} else {
+			try {
+				JSpotify.baseURL = JSpotify.resolvePort();
+			} catch (SpotifyException e) {
+				return false;
+			}
+			JSpotify.running = true;
+			return true;
+		}
+	}
+	
+	public static boolean canStartSpotify() {
+		return System.getProperty("os.name").toLowerCase().contains("windows")
+				&& Files.exists(Paths.get(System.getenv("APPDATA") + "\\Spotify\\Spotify.exe"));
+	}
+	
+	public static boolean startSpotify(Optional<Runnable> onClose) {
+		if (JSpotify.canStartSpotify() && !JSpotify.isSpotifyRunning(true)) {
+			try {
+				ProcessBuilder pb = new ProcessBuilder(System.getenv("APPDATA") + "\\Spotify\\Spotify.exe");
+				Process p = pb.start();
+				p.onExit()
+				.thenRun(() -> {
+					JSpotify.running = false;
+					JSpotify.initialized = false;
+				}).thenRun(onClose.orElse(() -> {}));
+				JSpotify.spotifyProcess = Optional.of(p.toHandle());
+			} catch (IOException e) {
+				return false;
+			}
+			return true;
+		} else {
+			return false;
+		}
+	}
+	
+	public static boolean startSpotify(Runnable onClose) {
+		return JSpotify.startSpotify(Optional.ofNullable(onClose));
+	}
+	
+	public static boolean startSpotify() {
+		return JSpotify.startSpotify(Optional.empty());
+	}
+	
+	public static Optional<ProcessHandle> getSpotifyProcess() {
+		return JSpotify.spotifyProcess;
 	}
 
 }
