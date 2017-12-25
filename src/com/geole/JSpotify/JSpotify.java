@@ -289,7 +289,7 @@ public class JSpotify {
 				JSONObject error = obj.getJSONObject("error");
 				int error_code = error.getInt("type");
 				String message = error.has("message") ? error.getString("message")
-						: "";
+						: Errors.get(error_code);
 				throw new SpotifyException(
 						"Spotify client returned an error! Error code " + error_code + " Message: " + message, error_code);
 			}
@@ -346,7 +346,7 @@ public class JSpotify {
 	 * @return A fresh status from right after the song has been paused
 	 */
 	public static Status pause() throws SpotifyException {
-		return JSpotify.request("/remote/pause.json", EMPTY_MAP, Status.class);
+		return JSpotify.request("/remote/pause.json", Map.of("pause", true), Status.class);
 	}
 
 	/**
@@ -354,7 +354,7 @@ public class JSpotify {
 	 * @return A fresh status from right after the song has been unpaused
 	 */
 	public static Status unpause() throws SpotifyException {
-		return JSpotify.request("/remote/pause.json", EMPTY_MAP, Status.class);
+		return JSpotify.request("/remote/pause.json", Map.of("pause", false), Status.class);
 	}
 
 	/**
