@@ -365,14 +365,18 @@ public class JSpotify {
 		return JSpotify.request("/remote/status.json", EMPTY_MAP, Status.class);
 	}
 	
+	private static Optional<ProcessHandle> findProcess() {
+		return ProcessHandle.allProcesses()
+				.filter(handle -> handle.info().command().isPresent()
+						&& handle.info().command().get().endsWith("Spotify.exe"))
+				.findFirst();
+	}
+	
 	public static boolean isSpotifyRunning(boolean checkProcess) {
 		if (JSpotify.running || (JSpotify.spotifyProcess.isPresent() && JSpotify.spotifyProcess.get().isAlive())) {
 			return true;
-		} else if (System.getProperty("os.name").toLowerCase().contains("windows") && checkProcess) {
-			Optional<ProcessHandle> ph = ProcessHandle.allProcesses()
-					.filter(handle -> handle.info().command().isPresent()
-							&& handle.info().command().get().endsWith("Spotify.exe"))
-					.findFirst();
+		} else if (isWindows() && checkProcess) {
+			Optional<ProcessHandle> ph = JSpotify.findProcess();
 			if (ph.isPresent()) {
 				JSpotify.spotifyProcess = ph;
 				JSpotify.running = true;
@@ -391,8 +395,12 @@ public class JSpotify {
 		}
 	}
 	
+	public static boolean isWindows() {
+		return System.getProperty("os.name").toLowerCase().contains("windows");
+	}
+	
 	public static boolean canStartSpotify() {
-		return System.getProperty("os.name").toLowerCase().contains("windows")
+		return isWindows()
 				&& Files.exists(Paths.get(System.getenv("APPDATA") + "\\Spotify\\Spotify.exe"));
 	}
 	
@@ -408,21 +416,6 @@ public class JSpotify {
 					JSpotify.spotifyProcess = Optional.empty();
 					JSpotify.spotifyProcess_ = Optional.empty();
 				}).thenRun(onClose.orElse(() -> {}));
-				/*while (true) {
-					System.out.println("Begin wait");
-					try {
-						System.out.println(JSpotify.resolvePort());
-					} catch(SpotifyException ex) {
-						if (ex.isAPIError() && ex.getErrorCode().get().equals(4110)) {
-							continue;
-						} else {
-							p.destroy();
-							return false;
-						}
-					}
-					System.out.println("Done");
-					break;
-				}*/
 				JSpotify.running = true;
 				JSpotify.spotifyProcess_ = Optional.of(p);
 				JSpotify.spotifyProcess = Optional.of(p.toHandle());
@@ -451,9 +444,23 @@ public class JSpotify {
 		return JSpotify.spotifyProcess_.isPresent() && JSpotify.spotifyProcess_.get().isAlive();
 	}
 	
-	public static void stopSpotify() {
+	public static void stopSpotify() throws SpotifyException {
 		if (JSpotify.canStopSpotify() && JSpotify.spotifyProcess_.get().isAlive()) {
 			JSpotify.spotifyProcess_.get().destroy();
+		} else if (isWindows() && JSpotify.spotifyProcess.isPresent()) {
+			System.out.println("Kill");
+			try {
+				Runtime.getRuntime().exec("taskkill /pid " + JSpotify.spotifyProcess.get().pid());
+			} catch (IOException e) {
+				throw new SpotifyException("Failed to kill Spotify", e);
+			}
+		} else if (isWindows() && JSpotify.findProcess().isPresent()) {
+			long pid = JSpotify.findProcess().get().pid();
+			try {
+				Runtime.getRuntime().exec("taskkill /pid " + pid);
+			} catch (IOException e) {
+				throw new SpotifyException("Failed to kill Spotify", e);
+			}
 		}
 	}
 
