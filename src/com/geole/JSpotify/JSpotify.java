@@ -80,6 +80,8 @@ public class JSpotify {
 	private static boolean initialized = false, running = false;
 	
 	private static Optional<ProcessHandle> spotifyProcess = Optional.empty();
+	
+	private static Optional<Process> spotifyProcess_ = Optional.empty();
 
 	// Maps error codes to error messages
 	// Sourced from https://github.com/chrippa/spotify-remote
@@ -231,8 +233,6 @@ public class JSpotify {
 			
 			JSpotify.running = true;
 		
-		} else {
-			System.out.println("Spotify already running");
 		}
 
 		try {
@@ -251,28 +251,32 @@ public class JSpotify {
 			throw new SpotifyException("Failed to acquire CSRF token.", e);
 		}
 		
-		JSpotify.initialized = true;
-		
 		while (true) {
 			try {
-				JSpotify.getStatus();
-			} catch(SpotifyException e) {
-				if (e.isAPIError() && e.getErrorCode().get().equals(4110)) {
+				JSpotify.request("/remote/status.json", EMPTY_MAP, Status.class, true);
+			} catch(SpotifyException ex) {
+				if (ex.isAPIError() && ex.getErrorCode().get().equals(4110)) {
 					continue;
 				} else {
-					throw e;
+					throw ex;
 				}
 			}
 			break;
 		}
+		
+		JSpotify.initialized = true;
 
 		return true;
 
 	}
-
+	
 	private static <C> C request(String path, Map<String, Object> opts, Class<C> clazz) throws SpotifyException {
+		return request(path, opts, clazz, false);
+	}
+	
+	private static <C> C request(String path, Map<String, Object> opts, Class<C> clazz, boolean force) throws SpotifyException {
 
-		if (!initialized) {
+		if (!initialized && !force) {
 			throw new SpotifyException("JSpotify must be initialized before you can use it.");
 		}
 		
@@ -401,7 +405,26 @@ public class JSpotify {
 				.thenRun(() -> {
 					JSpotify.running = false;
 					JSpotify.initialized = false;
+					JSpotify.spotifyProcess = Optional.empty();
+					JSpotify.spotifyProcess_ = Optional.empty();
 				}).thenRun(onClose.orElse(() -> {}));
+				/*while (true) {
+					System.out.println("Begin wait");
+					try {
+						System.out.println(JSpotify.resolvePort());
+					} catch(SpotifyException ex) {
+						if (ex.isAPIError() && ex.getErrorCode().get().equals(4110)) {
+							continue;
+						} else {
+							p.destroy();
+							return false;
+						}
+					}
+					System.out.println("Done");
+					break;
+				}*/
+				JSpotify.running = true;
+				JSpotify.spotifyProcess_ = Optional.of(p);
 				JSpotify.spotifyProcess = Optional.of(p.toHandle());
 			} catch (IOException e) {
 				return false;
@@ -422,6 +445,16 @@ public class JSpotify {
 	
 	public static Optional<ProcessHandle> getSpotifyProcess() {
 		return JSpotify.spotifyProcess;
+	}
+	
+	public static boolean canStopSpotify() {
+		return JSpotify.spotifyProcess_.isPresent() && JSpotify.spotifyProcess_.get().isAlive();
+	}
+	
+	public static void stopSpotify() {
+		if (JSpotify.canStopSpotify() && JSpotify.spotifyProcess_.get().isAlive()) {
+			JSpotify.spotifyProcess_.get().destroy();
+		}
 	}
 
 }
