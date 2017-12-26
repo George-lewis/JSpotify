@@ -28,7 +28,7 @@ import com.mashape.unirest.http.exceptions.UnirestException;
 public class JSpotify {
 	
 	/**
-	 * A SpotifyException is thrown when the Spotify api returns an error or there is an issue accessing the api
+	 * A SpotifyException is thrown when the Spotify api returns an error or there is an issue interfacing with Spotify
 	 */
 	public static class SpotifyException extends Exception {
 
@@ -372,6 +372,11 @@ public class JSpotify {
 				.findFirst();
 	}
 	
+	/**
+	 * Determines if the Spotify client is running
+	 * @param checkProcess If true JSpotify checks the running processes to determine if spotify is running else it scans for a connecting port
+	 * @return true is the client is open and false otherwise
+	 */
 	public static boolean isSpotifyRunning(boolean checkProcess) {
 		if (JSpotify.running || (JSpotify.spotifyProcess.isPresent() && JSpotify.spotifyProcess.get().isAlive())) {
 			return true;
@@ -395,16 +400,29 @@ public class JSpotify {
 		}
 	}
 	
-	public static boolean isWindows() {
+	private static boolean isWindows() {
 		return System.getProperty("os.name").toLowerCase().contains("windows");
 	}
 	
+	/**
+	 * Determines if Spotify can be started by JSpotify
+	 * The criteria are that the OS is Windows and the the exe is in the expected location {@see #startSpotify(Optional)}
+	 * @return
+	 */
 	public static boolean canStartSpotify() {
 		return isWindows()
 				&& Files.exists(Paths.get(System.getenv("APPDATA") + "\\Spotify\\Spotify.exe"));
 	}
 	
-	public static boolean startSpotify(Optional<Runnable> onClose) {
+	/**
+	 * Attempts to start the Spotify client
+	 * Only supported on Windows
+	 * Expects the Spotify executable to be at /AppData/Roaming/Spotify/Spotify.exe
+	 * @param onClose An optional runnable to be run when the client exits
+	 * @return true if the client was started successfully and false if it wasn't started
+	 * @throws SpotifyException Thrown if an error occurs in starting the client
+	 */
+	public static boolean startSpotify(Optional<Runnable> onClose) throws SpotifyException {
 		if (JSpotify.canStartSpotify() && !JSpotify.isSpotifyRunning(true)) {
 			try {
 				ProcessBuilder pb = new ProcessBuilder(System.getenv("APPDATA") + "\\Spotify\\Spotify.exe");
@@ -420,7 +438,7 @@ public class JSpotify {
 				JSpotify.spotifyProcess_ = Optional.of(p);
 				JSpotify.spotifyProcess = Optional.of(p.toHandle());
 			} catch (IOException e) {
-				return false;
+				throw new SpotifyException("Failed to start Spotify client!", e);
 			}
 			return true;
 		} else {
@@ -428,27 +446,50 @@ public class JSpotify {
 		}
 	}
 	
-	public static boolean startSpotify(Runnable onClose) {
+	/**
+	 * {@link #startSpotify(Optional)}
+	 */
+	public static boolean startSpotify(Runnable onClose) throws SpotifyException {
 		return JSpotify.startSpotify(Optional.ofNullable(onClose));
 	}
 	
-	public static boolean startSpotify() {
+	/**
+	 * {@link #startSpotify(Optional)}
+	 */
+	public static boolean startSpotify() throws SpotifyException {
 		return JSpotify.startSpotify(Optional.empty());
 	}
 	
-	public static Optional<ProcessHandle> getSpotifyProcess() {
+	public static Optional<ProcessHandle> getSpotifyProcessHandle() {
 		return JSpotify.spotifyProcess;
 	}
 	
-	public static boolean canStopSpotify() {
-		return JSpotify.spotifyProcess_.isPresent() && JSpotify.spotifyProcess_.get().isAlive();
+	/**
+	 * Only present if the client was started by JSpotify
+	 */
+	public static Optional<Process> getSpotifyProcess() {
+		return JSpotify.spotifyProcess_;
 	}
 	
+	/**
+	 * Checks to see if the client can be closed
+	 * @return true if the client can be closed false otherwise
+	 */
+	public static boolean canStopSpotify() {
+		return JSpotify.spotifyProcess_.isPresent() && JSpotify.spotifyProcess_.get().isAlive()
+				|| findProcess().isPresent();
+	}
+	
+	/**
+	 * Attempts to close the Spotify client
+	 * Only supported on Windows
+	 * Will destroy using Process.destroy() if JSpotify created the process else taskkill will be invoked on the pid
+	 * @throws SpotifyException thrown when closing the client fails
+	 */
 	public static void stopSpotify() throws SpotifyException {
 		if (JSpotify.canStopSpotify() && JSpotify.spotifyProcess_.get().isAlive()) {
 			JSpotify.spotifyProcess_.get().destroy();
 		} else if (isWindows() && JSpotify.spotifyProcess.isPresent()) {
-			System.out.println("Kill");
 			try {
 				Runtime.getRuntime().exec("taskkill /pid " + JSpotify.spotifyProcess.get().pid());
 			} catch (IOException e) {
