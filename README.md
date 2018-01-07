@@ -9,6 +9,7 @@ It's good for things like getting the current song or requesting a song be playe
 - Write docs, examples, and flesh out the readme
 - :heavy_check_mark: Consider creating data classes to represent api results
 - :heavy_check_mark: Find a faster way to acquire the port (threading?)
+- :heavy_check_mark: Process control features
 - Create a release
 
 # How to use it
@@ -17,7 +18,8 @@ Before you can use JSpotify it needs to be initialized (a few tokens must be obt
 
 ```
 try {
-  JSpotify.initialize();
+  JSpotify.initialize(true); // Will attempt to start the Spotify client if it is not running (Only supported on Windows)
+  JSpotify.initialize(false); // Will not attempt to start the Spotify client if it is not running
 } catch (SpotifyException e) {
   // JSpotify failed to initialize
 }
@@ -48,6 +50,15 @@ try {
 }
 ```
 
+Stopping the client:
+
+```
+try {
+  JSpotify.stopSpotify(); // Should be supported on all OS' (untested) check if the client can be closed with JSpotify.canStopSpotify()
+} catch (SpotifyException e) {
+  // JSpotify failed to close the client
+}
+
 # Installation
 
 TODO
@@ -62,4 +73,4 @@ TODO
 
 # How it works
 
-TODO
+The Spotify client has its own webserver that the web client uses to communicate information with to the desktop client. Third party applications can connect to this server and control the desktop client remotely.
