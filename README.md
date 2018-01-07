@@ -54,10 +54,12 @@ Stopping the client:
 
 ```
 try {
-  JSpotify.stopSpotify(); // Should be supported on all OS' (untested) check if the client can be closed with JSpotify.canStopSpotify()
+  JSpotify.stopSpotify();
+  // Should be supported on all OS' (untested) check if the client can be closed with JSpotify.canStopSpotify()
 } catch (SpotifyException e) {
   // JSpotify failed to close the client
 }
+```
 
 # Installation
 
