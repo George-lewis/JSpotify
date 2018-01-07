@@ -503,6 +503,7 @@ public class JSpotify {
 				throw new SpotifyException("Failed to kill Spotify", e);
 			}
 		}
+		throw new SpotifyException("Cannot stop Spotify");
 	}
 
 }
