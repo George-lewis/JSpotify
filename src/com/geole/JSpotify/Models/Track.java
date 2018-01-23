@@ -11,11 +11,11 @@ public class Track {
 	private final int length;
 
 	public Track(JSONObject obj) {
-		this.artist = new SpotifyResource(obj.getJSONObject("artist_resource"));
-		this.album = new SpotifyResource(obj.getJSONObject("album_resource"));
-		this.track = new SpotifyResource(obj.getJSONObject("track_resource"));
-		this.track_type = obj.getString("track_type");
-		this.length = obj.getInt("length");
+		this.artist = new SpotifyResource(obj.optJSONObject("artist_resource"));
+		this.album = new SpotifyResource(obj.optJSONObject("album_resource"));
+		this.track = new SpotifyResource(obj.optJSONObject("track_resource"));
+		this.track_type = obj.optString("track_type");
+		this.length = obj.optInt("length");
 	}
 	
 	public boolean isAd() {

@@ -82,6 +82,8 @@ public class JSpotify {
 	private static Optional<ProcessHandle> spotifyProcess = Optional.empty();
 	
 	private static Optional<Process> spotifyProcess_ = Optional.empty();
+	
+	private static Optional<Thread> waitThread = Optional.empty();
 
 	// Maps error codes to error messages
 	// Sourced from https://github.com/chrippa/spotify-remote
@@ -118,6 +120,30 @@ public class JSpotify {
 
 	// This is a static class
 	private JSpotify() {}
+	
+	private static boolean joinSpotifyProcess() {
+		if (!JSpotify.waitThread.isPresent()) {
+			if (!JSpotify.spotifyProcess.isPresent()) {
+				JSpotify.spotifyProcess = JSpotify.findProcess();
+				if (!JSpotify.spotifyProcess.isPresent()) {
+					return false;
+				}
+			}
+			Thread T = new Thread(() -> {
+				try {
+					JSpotify.spotifyProcess.get().onExit().get();
+				} catch (InterruptedException | ExecutionException e) {
+					return;
+				}
+			});
+			T.setName("Spotify Waiter Thread");
+			T.start();
+			JSpotify.waitThread = Optional.of(T);
+			return true;
+		} else {
+			return false;
+		}
+	}
 	
 	private static String resolvePort() throws SpotifyException {
 		ExecutorService executor = Executors.newFixedThreadPool(30);
@@ -181,7 +207,7 @@ public class JSpotify {
 	 * Do not call any api methods until you have initialized
 	 * This function call is blocking and may take some time to complete
 	 * NOTE: On a successful initialization true is returned, however
-	 * should an error occur, false is not returned and instead a @SpotifyException
+	 * should an error occur, false is not returned and instead an @SpotifyException
 	 * is thrown
 	 * 
 	 * @return Returns true if initialization was successful
@@ -437,8 +463,18 @@ public class JSpotify {
 				JSpotify.running = true;
 				JSpotify.spotifyProcess_ = Optional.of(p);
 				JSpotify.spotifyProcess = Optional.of(p.toHandle());
+				JSpotify.joinSpotifyProcess();
 			} catch (IOException e) {
 				throw new SpotifyException("Failed to start Spotify client!", e);
+			}
+			while (true) {
+				try {
+					JSpotify.baseURL = JSpotify.resolvePort();
+				} catch (SpotifyException e) {
+					continue;
+				}
+				JSpotify.running = true;
+				break;
 			}
 			return true;
 		} else {
@@ -480,6 +516,13 @@ public class JSpotify {
 				|| findProcess().isPresent();
 	}
 	
+	public static void addOnClosed(Runnable runnable) {
+		if (JSpotify.spotifyProcess.isPresent()) {
+			JSpotify.spotifyProcess.get().onExit().thenRun(runnable);
+			JSpotify.joinSpotifyProcess();
+		}
+	}
+	
 	/**
 	 * Attempts to close the Spotify client
 	 * Only supported on Windows
@@ -487,7 +530,7 @@ public class JSpotify {
 	 * @throws SpotifyException thrown when closing the client fails
 	 */
 	public static void stopSpotify() throws SpotifyException {
-		if (JSpotify.canStopSpotify() && JSpotify.spotifyProcess_.get().isAlive()) {
+		if (JSpotify.canStopSpotify() && JSpotify.spotifyProcess_.map(proc -> proc.isAlive()).orElse(false)) {
 			JSpotify.spotifyProcess_.get().destroy();
 		} else if (isWindows() && JSpotify.spotifyProcess.isPresent()) {
 			try {
@@ -502,8 +545,9 @@ public class JSpotify {
 			} catch (IOException e) {
 				throw new SpotifyException("Failed to kill Spotify", e);
 			}
+		} else {
+			throw new SpotifyException("Cannot stop Spotify");
 		}
-		throw new SpotifyException("Cannot stop Spotify");
 	}
 
 }

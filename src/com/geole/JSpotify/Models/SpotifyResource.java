@@ -4,12 +4,17 @@ import org.json.JSONObject;
 
 public class SpotifyResource {
 	
+	public static final JSONObject EMPTY_JSON = new JSONObject();
+	
 	private final String name, location, uri;
 	
 	public SpotifyResource(JSONObject obj) {
-		this.name = obj.getString("name");
-		this.location = obj.getJSONObject("location").getString("og");
-		this.uri = obj.getString("uri");
+		if (obj == null) {
+			obj = EMPTY_JSON;
+		}
+		this.name = obj.optString("name");
+		this.location = obj.optJSONObject("location") != null ? obj.getJSONObject("location").getString("og") : null;
+		this.uri = obj.optString("uri");
 	}
 
 	public String getName() {
