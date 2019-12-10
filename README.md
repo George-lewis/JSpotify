@@ -61,18 +61,6 @@ try {
 }
 ```
 
-# Installation
-
-TODO
-
-## JAR
-
-TODO
-
-## Maven
-
-TODO
-
 # How it works
 
 The Spotify client has its own webserver that the web client uses to communicate information with to the desktop client. Third party applications can connect to this server and control the desktop client remotely.
