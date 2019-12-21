@@ -3,15 +3,6 @@ A simple wrapper for the Spotify local api.
 This library allows easy integration with the Spotify desktop client.
 It's good for things like getting the current song or requesting a song be played.
 
-# TODO
-
-- :heavy_check_mark:? Write functions to match all of the supported api functions
-- Write docs, examples, and flesh out the readme
-- :heavy_check_mark: Consider creating data classes to represent api results
-- :heavy_check_mark: Find a faster way to acquire the port (threading?)
-- :heavy_check_mark: Process control features
-- Create a release
-
 # How to use it
 
 Before you can use JSpotify it needs to be initialized (a few tokens must be obtained and the local api address resolved)
