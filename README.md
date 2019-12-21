@@ -16,7 +16,7 @@ It's good for things like getting the current song or requesting a song be playe
 
 Before you can use JSpotify it needs to be initialized (a few tokens must be obtained and the local api address resolved)
 
-```
+```java
 try {
   JSpotify.initialize(true); // Will attempt to start the Spotify client if it is not running (Only supported on Windows)
   JSpotify.initialize(false); // Will not attempt to start the Spotify client if it is not running
@@ -29,7 +29,7 @@ After this you can make api calls
 
 Playing a song:
 
-```
+```java
 try {
   JSpotify.play("spotify:track:1ZqHjApl3pfzwjweTfMi0g"); // The Spotify URI for Coldplay's Violet Hill
 } catch (SpotifyException e) {
@@ -39,7 +39,7 @@ try {
 
 Getting the various client info:
 
-```
+```java
 try {
   Status status = JSpotify.getStatus();
   status.getClientVersion();
@@ -52,7 +52,7 @@ try {
 
 Stopping the client:
 
-```
+```java
 try {
   JSpotify.stopSpotify();
   // Should be supported on all OS' (untested) check if the client can be closed with JSpotify.canStopSpotify()
