@@ -10,7 +10,7 @@ Before you can use JSpotify it needs to be initialized (a few tokens must be obt
 ```java
 try {
   JSpotify.initialize(true); // Will attempt to start the Spotify client if it is not running (Only supported on Windows)
-  JSpotify.initialize(false); // Will not attempt to start the Spotify client if it is not running
+  JSpotify.initialize(false); // Will not attempt to start the Spotify client
 } catch (SpotifyException e) {
   // JSpotify failed to initialize
 }
