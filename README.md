@@ -1,3 +1,7 @@
+## Notice
+
+I'm not sure as of when, but _Spotify removed the local API_, and so unfortunately it's impossible to make JSpotify work in the original way. I looked into it a little, and it seems that they control the clients remotely through an online API. All this to say, JSpotify is now defunct. I will leave the repository up, but know that it no longer works.
+
 # JSpotify
 A simple wrapper for the Spotify local api.
 This library allows easy integration with the Spotify desktop client.
